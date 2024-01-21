@@ -57,8 +57,9 @@ class Game:
         self.formatted_game_time = None
         self.game_state = None
         self.screen_locked = False
-        self.in_lane = False
         self.is_dead = False
+        self.in_lane = False
+        self.current_health = None
         self.ability_upgrades = ['ctrl+r', 'ctrl+q', 'ctrl+w', 'ctrl+e']
 
     def play_game(self) -> bool:
@@ -76,7 +77,7 @@ class Game:
                     case GameState.EARLY_GAME:
                         self.play(Game.MINI_MAP_CENTER_MID, Game.MINI_MAP_UNDER_TURRET, 20)
                     case GameState.LATE_GAME:
-                        self.play(Game.MINI_MAP_ENEMY_NEXUS, Game.MINI_MAP_CENTER_MID, 35)
+                        self.play(Game.MINI_MAP_ENEMY_NEXUS, Game.MINI_MAP_CENTER_MID, 30)
         except GameError as e:
             self.log.warning(e.__str__())
             utils.close_game()
@@ -141,44 +142,47 @@ class Game:
         self.buy_item()
         self.lock_screen()
         self.upgrade_abilities()
-        while self.is_dead:
-            self.update_state()
+
+        self.update_state()
+        if self.current_health == 0:
+            sleep(self.respawnTimer)
+            
         utils.click(Game.AFK_OK_BUTTON, utils.LEAGUE_GAME_CLIENT_WINNAME)
+
         if not self.in_lane:
             utils.attack_move_click(attack_position)
             utils.press('d', utils.LEAGUE_GAME_CLIENT_WINNAME)  # ghost
             sleep(time_to_lane)
             self.in_lane = True
 
+        # Si me matan mientras voy a la linea
+        if self.current_health == 0:
+            self.in_lane = False
+            return
+
         # Main attack move loop. This sequence attacks and then de-aggros to prevent them from dying 50 times.
         for i in range(6):
             self.attack_move_cycle(attack_position, retreat_position,'q')
-            if self.is_dead == True:
-                self.log.info("isDead = True. Returning. Valor: {}".format(self.is_dead))
+            if self.current_health == 0:
+                self.in_lane = False
                 return
-            else:
-                self.log.info("isDead no es true. Continuing. Valor: {}".format(self.is_dead))
 
         self.between_cycles(attack_position=attack_position, retreat_position=retreat_position)
 
         #Segundo loop
         for i in range(6):
             self.attack_move_cycle(attack_position, retreat_position,'q')
-            if self.is_dead == True:
-                self.log.info("isDead = True. Returning. Valor: {}".format(self.is_dead))
+            if self.current_health == 0:
+                self.in_lane = False
                 return
-            else:
-                self.log.info("isDead no es true. Continuing. Valor: {}".format(self.is_dead))
-
+            
         self.between_cycles(attack_position=attack_position, retreat_position=retreat_position)
 
         for i in range(6):
             self.attack_move_cycle(attack_position, retreat_position,'q')
-            if self.is_dead == True:
-                self.log.info("isDead = True. Returning. Valor: {}".format(self.is_dead))
+            if self.current_health == 0:
+                self.in_lane = False
                 return
-            else:
-                self.log.info("isDead no es true. Continuing. Valor: {}".format(self.is_dead))
 
         # Ulti
         self.attack_move_cycle(attack_position, retreat_position,'r')
@@ -191,7 +195,7 @@ class Game:
     def attack_move_cycle(self, attack_position: tuple, retreat_position: tuple, letra: str) -> None:
         utils.attack_move_click(attack_position, 4)
         utils.attack_move_click(Game.ULT_DIRECTION)
-        utils.press(str, utils.LEAGUE_GAME_CLIENT_WINNAME, 0.1)
+        utils.press(letra, utils.LEAGUE_GAME_CLIENT_WINNAME, 0.1)
         utils.attack_move_click(attack_position, 4)
         utils.right_click(retreat_position, utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
         self.update_state()
@@ -249,9 +253,19 @@ class Game:
             return False
 
         self.game_data = response.json()
+
+        # Mi parte para obtener vida actual
+        self.current_health = self.game_data['activePlayer']['championStats']['currentHealth']
+        self.log.debug("Current Health: {}".format(self.current_health))
+        #Lo hice así porque antes no funcionaba el isDead pero creo que ya se por que, un problema con usernames
+
+        #Obtener respawnTimer de mi campeon
+        player_name = self.game_data['activePlayer']['summonerName'].split('#')[0]
+
         for player in self.game_data['allPlayers']:
-            if player['summonerName'] == self.game_data['activePlayer']['summonerName']:
+            if player['summonerName'] == player_name:
                 self.is_dead = bool(player['isDead'])
+                self.respawnTimer = player['respawnTimer']
         self.game_time = int(self.game_data['gameData']['gameTime'])
         self.formatted_game_time = utils.seconds_to_min_sec(self.game_time)
         if self.game_time < 3:
