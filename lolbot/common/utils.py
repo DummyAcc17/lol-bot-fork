@@ -183,6 +183,29 @@ def attack_move_click(ratio: tuple, wait: int or float = 1) -> None:
     keyboard.release('a')
     sleep(wait)
 
+#Copypaste de attack_move_click solo que con el final modificado para que no haga el sleep de una.
+# def attack_move_click_con_habilidad(ratio: tuple, wait: int or float = 1) -> None:
+#     """Attack move clicks in an open League of Legends game window"""
+#     if not exists(LEAGUE_GAME_CLIENT_WINNAME):
+#         log.debug("Cannot attack move when game is not running")
+#         raise WindowNotFound
+#     log.debug('Attack Moving on ratio {}: {}, {}. Waiting: {}'.format(ratio, ratio[0], ratio[1], wait))
+#     x, y, l, h = size(LEAGUE_GAME_CLIENT_WINNAME)
+#     updated_x = ((l - x) * ratio[0]) + x
+#     updated_y = ((h - y) * ratio[1]) + y
+#     pyautogui.moveTo(updated_x, updated_y)
+#     sleep(.5)
+#     keyboard.press('a')
+#     sleep(.1)
+#     mouse.click()
+#     sleep(.1)
+#     mouse.click()
+#     keyboard.release('a')
+#     sleep(wait/2)
+#     attack_move_click(Game.ULT_DIRECTION)
+#     keyboard.press_and_release('q')
+#     sleep(wait/2)
+
 
 def press(key: str, expected_window: str = '', wait: int or float = 1) -> None:
     """Sends a keypress to a window"""

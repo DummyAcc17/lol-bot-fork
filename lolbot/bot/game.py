@@ -151,26 +151,65 @@ class Game:
             self.in_lane = True
 
         # Main attack move loop. This sequence attacks and then de-aggros to prevent them from dying 50 times.
-        for i in range(7):
-            utils.attack_move_click(attack_position, 8)
-            utils.right_click(retreat_position, utils.LEAGUE_GAME_CLIENT_WINNAME, 2.5)
+        for i in range(6):
+            self.attack_move_cycle(attack_position, retreat_position,'q')
+            if self.is_dead == True:
+                self.log.info("isDead = True. Returning. Valor: {}".format(self.is_dead))
+                return
+            else:
+                self.log.info("isDead no es true. Continuing. Valor: {}".format(self.is_dead))
 
-        # Ult and back
-        utils.press('f', utils.LEAGUE_GAME_CLIENT_WINNAME)
-        utils.attack_move_click(Game.ULT_DIRECTION)
-        utils.press('r', utils.LEAGUE_GAME_CLIENT_WINNAME, 4)
+        self.between_cycles(attack_position=attack_position, retreat_position=retreat_position)
+
+        #Segundo loop
+        for i in range(6):
+            self.attack_move_cycle(attack_position, retreat_position,'q')
+            if self.is_dead == True:
+                self.log.info("isDead = True. Returning. Valor: {}".format(self.is_dead))
+                return
+            else:
+                self.log.info("isDead no es true. Continuing. Valor: {}".format(self.is_dead))
+
+        self.between_cycles(attack_position=attack_position, retreat_position=retreat_position)
+
+        for i in range(6):
+            self.attack_move_cycle(attack_position, retreat_position,'q')
+            if self.is_dead == True:
+                self.log.info("isDead = True. Returning. Valor: {}".format(self.is_dead))
+                return
+            else:
+                self.log.info("isDead no es true. Continuing. Valor: {}".format(self.is_dead))
+
+        # Ulti
+        self.attack_move_cycle(attack_position, retreat_position,'r')
+
+        #Back
         utils.right_click(Game.MINI_MAP_UNDER_TURRET, utils.LEAGUE_GAME_CLIENT_WINNAME, 6)
-        utils.press('b', utils.LEAGUE_GAME_CLIENT_WINNAME, 10)
+        utils.press('b', utils.LEAGUE_GAME_CLIENT_WINNAME, 8.1)
         self.in_lane = False
+
+    def attack_move_cycle(self, attack_position: tuple, retreat_position: tuple, letra: str) -> None:
+        utils.attack_move_click(attack_position, 4)
+        utils.attack_move_click(Game.ULT_DIRECTION)
+        utils.press(str, utils.LEAGUE_GAME_CLIENT_WINNAME, 0.1)
+        utils.attack_move_click(attack_position, 4)
+        utils.right_click(retreat_position, utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
+        self.update_state()
+
+
+    def between_cycles(self, attack_position: tuple, retreat_position: tuple) -> None:
+        self.upgrade_abilities()
+        utils.press('f', utils.LEAGUE_GAME_CLIENT_WINNAME) #heal
+        self.attack_move_cycle(attack_position, retreat_position,'r')
 
     def buy_item(self) -> None:
         """Opens the shop and attempts to purchase items via default shop hotkeys"""
         self.log.debug("Attempting to purchase an item from build order")
-        utils.press('p', utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
-        utils.click(random.choice(Game.SHOP_ITEM_BUTTONS), utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
-        utils.click(Game.SHOP_PURCHASE_ITEM_BUTTON, utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
-        utils.press('esc', utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
-        utils.click(Game.SYSTEM_MENU_X_BUTTON, utils.LEAGUE_GAME_CLIENT_WINNAME, 1.5)
+        utils.press('p', utils.LEAGUE_GAME_CLIENT_WINNAME, 0.5)
+        utils.click(random.choice(Game.SHOP_ITEM_BUTTONS), utils.LEAGUE_GAME_CLIENT_WINNAME, 0.5)
+        utils.click(Game.SHOP_PURCHASE_ITEM_BUTTON, utils.LEAGUE_GAME_CLIENT_WINNAME, 0.5)
+        utils.press('esc', utils.LEAGUE_GAME_CLIENT_WINNAME, 0.5)
+        utils.click(Game.SYSTEM_MENU_X_BUTTON, utils.LEAGUE_GAME_CLIENT_WINNAME, 0.5)
 
     def lock_screen(self) -> None:
         """Locks screen on champion"""
