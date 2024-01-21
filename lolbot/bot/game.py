@@ -38,7 +38,8 @@ class Game:
     MINI_MAP_CENTER_MID = (0.8981, 0.8674)
     MINI_MAP_ENEMY_NEXUS = (0.9628, 0.7852)
     
-    ULT_DIRECTION = (0.7298, 0.2689)
+    #ULT_DIRECTION = (0.7298, 0.2689)
+    ULT_DIRECTION = (0.7298, 0.23)
     CENTER_OF_SCREEN = (0.5, 0.5)
     
     AFK_OK_BUTTON = (0.4981, 0.4647)
@@ -47,7 +48,7 @@ class Game:
     SHOP_PURCHASE_ITEM_BUTTON = (0.7586, 0.8221)
 
     EARLY_GAME_END_TIME = 630
-    MAX_GAME_TIME = 2400
+    MAX_GAME_TIME = 3200
     
     def __init__(self) -> None:
         self.log = logging.getLogger(__name__)
@@ -75,9 +76,9 @@ class Game:
                     case GameState.PRE_MINIONS:
                         self.game_start()
                     case GameState.EARLY_GAME:
-                        self.play(Game.MINI_MAP_CENTER_MID, Game.MINI_MAP_UNDER_TURRET, 20)
+                        self.play(Game.MINI_MAP_CENTER_MID, Game.MINI_MAP_UNDER_TURRET, 15)
                     case GameState.LATE_GAME:
-                        self.play(Game.MINI_MAP_ENEMY_NEXUS, Game.MINI_MAP_CENTER_MID, 30)
+                        self.play(Game.MINI_MAP_ENEMY_NEXUS, Game.MINI_MAP_CENTER_MID, 20)
         except GameError as e:
             self.log.warning(e.__str__())
             utils.close_game()
@@ -139,6 +140,7 @@ class Game:
     def play(self, attack_position: tuple, retreat_position: tuple, time_to_lane: int) -> None:
         """A set of player actions. Buys items, levels up abilities, heads to lane, attacks, then retreats"""
         self.log.debug("Main player loop. GameState: {}".format(self.game_state))
+        self.log.info("Comenzando loop play")
         self.buy_item()
         self.lock_screen()
         self.upgrade_abilities()
@@ -149,48 +151,60 @@ class Game:
             
         utils.click(Game.AFK_OK_BUTTON, utils.LEAGUE_GAME_CLIENT_WINNAME)
 
-        if not self.in_lane:
-            utils.attack_move_click(attack_position)
-            utils.press('d', utils.LEAGUE_GAME_CLIENT_WINNAME)  # ghost
-            sleep(time_to_lane)
-            self.in_lane = True
+        utils.attack_move_click(attack_position)
+        utils.press('d', utils.LEAGUE_GAME_CLIENT_WINNAME)  # ghost
+        sleep(time_to_lane)
+
 
         # Si me matan mientras voy a la linea
+        # Si reviví antes de que termine el sleep no funciona muy bien, por eso acorté el sleep para q no pase
+        self.update_state()
         if self.current_health == 0:
-            self.in_lane = False
+            self.log.info("Me mataron yendo a linea")
             return
 
         # Main attack move loop. This sequence attacks and then de-aggros to prevent them from dying 50 times.
-        for i in range(6):
+        for i in range(5):
             self.attack_move_cycle(attack_position, retreat_position,'q')
             if self.current_health == 0:
-                self.in_lane = False
+                self.log.info("Me mori en loop de ataque q")
                 return
 
         self.between_cycles(attack_position=attack_position, retreat_position=retreat_position)
+        if self.current_health == 0:
+            self.log.info("Me mori en loop de ataque r")
+            return
 
         #Segundo loop
-        for i in range(6):
+        for i in range(5):
             self.attack_move_cycle(attack_position, retreat_position,'q')
             if self.current_health == 0:
-                self.in_lane = False
                 return
             
         self.between_cycles(attack_position=attack_position, retreat_position=retreat_position)
+        if self.current_health == 0:
+            self.log.info("Me mori en loop de ataque r")
+            return
 
-        for i in range(6):
+        for i in range(5):
             self.attack_move_cycle(attack_position, retreat_position,'q')
             if self.current_health == 0:
-                self.in_lane = False
+                self.log.info("Me mori en loop de ataque q")
                 return
 
         # Ulti
         self.attack_move_cycle(attack_position, retreat_position,'r')
+        if self.current_health == 0:
+            self.log.info("Me mori en loop de ataque r")
+            return
 
         #Back
         utils.right_click(Game.MINI_MAP_UNDER_TURRET, utils.LEAGUE_GAME_CLIENT_WINNAME, 6)
+        self.update_state()
+        if self.current_health == 0:
+            self.log.info("Me mori justo antes de backear...")
+            return
         utils.press('b', utils.LEAGUE_GAME_CLIENT_WINNAME, 8.1)
-        self.in_lane = False
 
     def attack_move_cycle(self, attack_position: tuple, retreat_position: tuple, letra: str) -> None:
         utils.attack_move_click(attack_position, 4)
@@ -283,5 +297,5 @@ class Game:
         else:
             raise GameError("Game has exceeded the max time limit")
         self.connection_errors = 0
-        self.log.debug("State Updated. Game Time: {}, Game State: {}, IsDead: {}".format(self.game_time, self.game_state, self.is_dead))
+        self.log.debug("State Updated. Game Time: {}, Game State: {}, IsDead: {}, RespawnTimer: {}, currentHealth: {}".format(self.game_time, self.game_state, self.is_dead, self.respawnTimer, self.current_health))
         return True
